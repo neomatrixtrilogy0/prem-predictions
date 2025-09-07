@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Results - Premier League Predictions{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('home') }}" class="back-link">← Back to Home</a>
+
+<div class="card">
+    <h2 style="margin-bottom: 30px; color: #38003c; text-align: center;">
+        📊 Results & Leaderboards
+    </h2>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+        
+        <!-- Overall Leaderboard -->
+        <a href="{{ url_for('leaderboard') }}" style="text-decoration: none;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 15px; text-align: center; cursor: pointer; transition: transform 0.3s ease;">
+                <div style="font-size: 3em; margin-bottom: 15px;">🏆</div>
+                <h3 style="margin-bottom: 10px;">Overall Leaderboard</h3>
+                <p>See total points across all gameweeks</p>
+            </div>
+        </a>
+        
+        <!-- Weekly Results -->
+        <div style="background: linear-gradient(135deg, #38003c 0%, #722F37 100%); color: white; padding: 30px; border-radius: 15px; text-align: center;">
+            <div style="font-size: 3em; margin-bottom: 15px;">📅</div>
+            <h3 style="margin-bottom: 15px;">Weekly Results</h3>
+            <p style="margin-bottom: 20px;">View results for specific gameweeks</p>
+            
+            <select onchange="if(this.value) window.location.href='/results/weekly/'+this.value" style="width: 100%; padding: 10px; border: none; border-radius: 5px; color: #333; margin-bottom: 10px;">
+                <option value="">Select Gameweek</option>
+                {% for week in range(1, 39) %}
+                    <option value="{{ week }}">Gameweek {{ week }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="color: #38003c; margin-bottom: 15px;">🎯 How Points Work</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+        <div style="background: #d4edda; padding: 20px; border-radius: 10px; border-left: 4px solid #28a745;">
+            <h4 style="color: #155724; margin-bottom: 10px;">✅ Correct Prediction</h4>
+            <p style="color: #155724; margin: 0;">1 Point for predicting the correct result (Win/Draw/Loss)</p>
+        </div>
+        <div style="background: #f8d7da; padding: 20px; border-radius: 10px; border-left: 4px solid #dc3545;">
+            <h4 style="color: #721c24; margin-bottom: 10px;">❌ Wrong Prediction</h4>
+            <p style="color: #721c24; margin: 0;">0 Points for incorrect predictions</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

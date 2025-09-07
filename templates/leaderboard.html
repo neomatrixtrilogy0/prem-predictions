@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Overall Leaderboard{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('results_home') }}" class="back-link">← Back to Results</a>
+
+<div class="card">
+    <h2 style="margin-bottom: 30px; color: #38003c; text-align: center;">
+        🏆 Overall Leaderboard - Total Points
+    </h2>
+    
+    {% if results and results|length > 0 %}
+    
+    <!-- Top 3 Podium -->
+    <div class="podium" style="display: flex; justify-content: center; align-items: end; margin-bottom: 40px; gap: 20px;">
+        {% for result in results[:3] %}
+            {% if loop.index == 2 %}  <!-- Silver - 2nd place -->
+                <div class="podium-place" style="text-align: center; order: 1;">
+                    <div style="background: linear-gradient(45deg, #c0c0c0, #e8e8e8); color: #333; padding: 30px 20px; border-radius: 15px; margin-bottom: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                        <div style="font-size: 3em; margin-bottom: 10px;">🥈</div>
+                        <div style="font-weight: 600; font-size: 1.2em;">{{ result[0] }}</div>
+                        <div style="font-size: 2em; font-weight: 700; margin: 10px 0;">{{ result[1] }}</div>
+                        <div style="font-size: 0.9em;">2nd Place</div>
+                    </div>
+                    <div style="background: #c0c0c0; height: 60px; width: 120px; margin: 0 auto; border-radius: 5px 5px 0 0;"></div>
+                </div>
+            {% elif loop.index == 1 %}  <!-- Gold - 1st place -->
+                <div class="podium-place" style="text-align: center; order: 2;">
+                    <div style="background: linear-gradient(45deg, #ffd700, #ffed4e); color: #333; padding: 40px 25px; border-radius: 15px; margin-bottom: 10px; box-shadow: 0 8px 25px rgba(0,0,0,0.15);">
+                        <div style="font-size: 4em; margin-bottom: 10px;">🏆</div>
+                        <div style="font-weight: 700; font-size: 1.3em;">{{ result[0] }}</div>
+                        <div style="font-size: 2.5em; font-weight: 800; margin: 10px 0;">{{ result[1] }}</div>
+                        <div style="font-size: 0.9em;">Champion</div>
+                    </div>
+                    <div style="background: #ffd700; height: 80px; width: 120px; margin: 0 auto; border-radius: 5px 5px 0 0;"></div>
+                </div>
+            {% elif loop.index == 3 %}  <!-- Bronze - 3rd place -->
+                <div class="podium-place" style="text-align: center; order: 3;">
+                    <div style="background: linear-gradient(45deg, #cd7f32, #d4a574); color: white; padding: 25px 20px; border-radius: 15px; margin-bottom: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                        <div style="font-size: 2.5em; margin-bottom: 10px;">🥉</div>
+                        <div style="font-weight: 600; font-size: 1.1em;">{{ result[0] }}</div>
+                        <div style="font-size: 1.8em; font-weight: 700; margin: 10px 0;">{{ result[1] }}</div>
+                        <div style="font-size: 0.9em;">3rd Place</div>
+                    </div>
+                    <div style="background: #cd7f32; height: 40px; width: 120px; margin: 0 auto; border-radius: 5px 5px 0 0;"></div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    
+    <!-- Full Leaderboard Table -->
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Player</th>
+                    <th>Total Points</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr {% if loop.index <= 3 and result[1] > 0 %}style="background: rgba(255, 215, 0, 0.1);"{% endif %}>
+                    <td>
+                        {% if loop.index == 1 %}
+                            🏆 1st
+                        {% elif loop.index == 2 %}
+                            🥈 2nd
+                        {% elif loop.index == 3 %}
+                            🥉 3rd
+                        {% else %}
+                            {{ loop.index }}
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 600; font-size: 1.1em;">{{ result[0] }}</td>
+                    <td>
+                        <span style="background: #28a745; color: white; padding: 8px 20px; border-radius: 25px; font-weight: 700; font-size: 1.2em;">
+                            {{ result[1] }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <h3>No data available</h3>
+        <p>No predictions have been made yet.</p>
+        <a href="{{ url_for('home') }}" class="btn" style="margin-top: 20px;">Make Predictions</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card" style="text-align: center;">
+    <h3 style="color: #38003c; margin-bottom: 20px;">Quick Navigation</h3>
+    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+        <a href="{{ url_for('weekly_results', game_week=1) }}" class="btn">📅 Gameweek 1</a>
+        <a href="{{ url_for('weekly_results', game_week=2) }}" class="btn">📅 Gameweek 2</a>
+        <a href="{{ url_for('weekly_results', game_week=3) }}" class="btn">📅 Gameweek 3</a>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">🎯 Make Predictions</a>
+    </div>
+</div>
+
+<style>
+.podium-place {
+    transition: transform 0.3s ease;
+}
+
+.podium-place:hover {
+    transform: scale(1.05);
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .podium {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .podium-place {
+        order: unset !important;
+        margin-bottom: 20px;
+    }
+    
+    .table {
+        font-size: 14px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 8px;
+    }
+}
+</style>
+{% endblock %}

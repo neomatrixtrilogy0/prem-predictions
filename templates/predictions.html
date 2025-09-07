@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Predictions - {{ player[0] }} - Game Week {{ game_week }}{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('home') }}" class="back-link">← Back to Home</a>
+
+<div class="card">
+    <h2 style="margin-bottom: 20px; color: #38003c;">
+        📊 {{ player[0] }}'s Predictions - Game Week {{ game_week }}
+    </h2>
+    
+    {% if matches %}
+    <form action="{{ url_for('submit_predictions') }}" method="post">
+        <input type="hidden" name="player_id" value="{{ player_id }}">
+        <input type="hidden" name="game_week" value="{{ game_week }}">
+        
+        {% for match in matches %}
+        <div class="match-card">
+            <div class="match-info">
+                <div class="match-teams">
+                    {{ match[1] }} vs {{ match[2] }}
+                </div>
+                <div class="match-date">
+                    {{ match[3][:16] if match[3] else 'TBD' }} UTC
+                </div>
+                {% if match[4] == 'FINISHED' %}
+                    <div style="color: #28a745; font-weight: bold; margin-top: 5px;">
+                        ✅ Final Result: {{ match[5] if match[5] else 'Unknown' }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="prediction-options">
+                {% set current_prediction = predictions.get(match[0]) %}
+                
+                <input type="radio" name="prediction_{{ match[0] }}" id="home_{{ match[0] }}" value="HOME" 
+                       {% if current_prediction == 'HOME' %}checked{% endif %}>
+                <label for="home_{{ match[0] }}">{{ match[1] }} Win</label>
+                
+                <input type="radio" name="prediction_{{ match[0] }}" id="draw_{{ match[0] }}" value="DRAW"
+                       {% if current_prediction == 'DRAW' %}checked{% endif %}>
+                <label for="draw_{{ match[0] }}">Draw</label>
+                
+                <input type="radio" name="prediction_{{ match[0] }}" id="away_{{ match[0] }}" value="AWAY"
+                       {% if current_prediction == 'AWAY' %}checked{% endif %}>
+                <label for="away_{{ match[0] }}">{{ match[2] }} Win</label>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <button type="submit" class="btn" style="font-size: 18px; padding: 15px 40px;">
+                🎯 Submit All Predictions
+            </button>
+        </div>
+    </form>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #666;">
+        <h3>No matches found for Game Week {{ game_week }}</h3>
+        <p>Matches may not be available yet or there was an error loading them.</p>
+        <a href="{{ url_for('home') }}" class="btn" style="margin-top: 20px;">Go Back</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const submitBtn = document.querySelector('button[type="submit"]');
+    
+    // Check if all predictions are made
+    function checkAllPredictions() {
+        const matchCards = document.querySelectorAll('.match-card');
+        let allPredicted = true;
+        let totalMatches = 0;
+        let predictedMatches = 0;
+        
+        matchCards.forEach(card => {
+            const radios = card.querySelectorAll('input[type="radio"]:not(:disabled)');
+            if (radios.length > 0) {
+                totalMatches++;
+                const checked = card.querySelector('input[type="radio"]:checked');
+                if (checked) {
+                    predictedMatches++;
+                } else {
+                    allPredicted = false;
+                }
+            }
+        });
+        
+        // Update button text
+        if (totalMatches > 0) {
+            submitBtn.textContent = `🎯 Submit Predictions (${predictedMatches}/${totalMatches})`;
+        }
+        
+        return allPredicted;
+    }
+    
+    // Add event listeners to radio buttons
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', checkAllPredictions);
+    });
+    
+    // Initial check
+    checkAllPredictions();
+    
+    // Form submission validation
+    form.addEventListener('submit', function(e) {
+        const confirmed = confirm('Are you sure you want to submit these predictions?');
+        if (!confirmed) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

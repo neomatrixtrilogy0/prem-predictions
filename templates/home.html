@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Premier League Predictions{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 style="margin-bottom: 20px; color: #38003c;">Select Player & Game Week</h2>
+    
+    <form action="/predictions" method="get">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <div class="form-group">
+                <label for="player">Choose Player:</label>
+                <select name="player_id" id="player" required>
+                    <option value="">-- Select Player --</option>
+                    {% for player in players %}
+                        <option value="{{ player[0] }}">{{ player[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="game_week">Choose Game Week:</label>
+                <select name="game_week" id="game_week" required>
+                    <option value="">-- Select Game Week --</option>
+                    {% for week in game_weeks %}
+                        <option value="{{ week }}">Game Week {{ week }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn">Make Predictions 🎯</button>
+    </form>
+</div>
+
+<div class="card">
+    <h3 style="color: #38003c; margin-bottom: 15px;">ℹ️ How It Works</h3>
+    <ul style="line-height: 1.8; color: #666;">
+        <li><strong>1 Point</strong> for each correct result prediction (Win/Loss/Draw)</li>
+        <li>Submit predictions before each match starts</li>
+        <li>You can change predictions up to 5 minutes before kickoff</li>
+        <li>Game Weeks 1-3 will be added manually</li>
+        <li>Competition runs for all 38 game weeks</li>
+    </ul>
+</div>
+
+<script>
+// Add some interactivity
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const playerSelect = document.getElementById('player');
+    const gameWeekSelect = document.getElementById('game_week');
+    
+    // Update URL when selections change
+    function updateURL() {
+        const playerId = playerSelect.value;
+        const gameWeek = gameWeekSelect.value;
+        
+        if (playerId && gameWeek) {
+            form.action = `/predictions/${playerId}/${gameWeek}`;
+        }
+    }
+    
+    playerSelect.addEventListener('change', updateURL);
+    gameWeekSelect.addEventListener('change', updateURL);
+});
+</script>
+{% endblock %}

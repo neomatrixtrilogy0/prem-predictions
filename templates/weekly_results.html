@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Gameweek {{ game_week }} Results{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('results_home') }}" class="back-link">← Back to Results</a>
+
+<div class="card">
+    <h2 style="color: #38003c; text-align: center; margin-bottom: 30px;">
+        📊 Gameweek {{ game_week }} Results
+    </h2>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 20px;">
+        
+        <!-- Weekly Points Table -->
+        <div>
+            <h3 style="color: #38003c; margin-bottom: 15px; text-align: center;">
+                🎯 This Week's Points
+            </h3>
+            {% if weekly_results %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in weekly_results %}
+                        <tr>
+                            <td>
+                                {% if loop.index == 1 and result[1] > 0 %}
+                                    🥇 {{ loop.index }}
+                                {% elif loop.index == 2 and result[1] > 0 %}
+                                    🥈 {{ loop.index }}
+                                {% elif loop.index == 3 and result[1] > 0 %}
+                                    🥉 {{ loop.index }}
+                                {% else %}
+                                    {{ loop.index }}
+                                {% endif %}
+                            </td>
+                            <td style="font-weight: 600;">{{ result[0] }}</td>
+                            <td>
+                                <span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600;">
+                                    {{ result[1] }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 20px; color: #666;">
+                <p>No results for this week yet.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Cumulative Points Table -->
+        <div>
+            <h3 style="color: #38003c; margin-bottom: 15px; text-align: center;">
+                🏆 Total Points (Up to GW{{ game_week }})
+            </h3>
+            {% if cumulative_results %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in cumulative_results %}
+                        <tr {% if loop.index <= 3 and result[1] > 0 %}style="background: rgba(255, 215, 0, 0.1);"{% endif %}>
+                            <td>
+                                {% if loop.index == 1 and result[1] > 0 %}
+                                    🏆 {{ loop.index }}
+                                {% elif loop.index == 2 and result[1] > 0 %}
+                                    🥈 {{ loop.index }}
+                                {% elif loop.index == 3 and result[1] > 0 %}
+                                    🥉 {{ loop.index }}
+                                {% else %}
+                                    {{ loop.index }}
+                                {% endif %}
+                            </td>
+                            <td style="font-weight: 600;">{{ result[0] }}</td>
+                            <td>
+                                <span style="background: #667eea; color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 1.1em;">
+                                    {{ result[1] }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 20px; color: #666;">
+                <p>No total results yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card" style="text-align: center;">
+    <h3 style="color: #38003c; margin-bottom: 20px;">Navigation</h3>
+    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+        {% if game_week > 1 %}
+            <a href="{{ url_for('weekly_results', game_week=game_week-1) }}" class="btn">← Gameweek {{ game_week-1 }}</a>
+        {% endif %}
+        <a href="{{ url_for('leaderboard') }}" class="btn btn-secondary">🏆 Overall Leaderboard</a>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">🎯 Make Predictions</a>
+        {% if game_week < 38 %}
+            <a href="{{ url_for('weekly_results', game_week=game_week+1) }}" class="btn">Gameweek {{ game_week+1 }} →</a>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.table-responsive {
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .card > div:first-child {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+    }
+    
+    .table {
+        font-size: 14px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 8px;
+    }
+}
+</style>
+{% endblock %}
