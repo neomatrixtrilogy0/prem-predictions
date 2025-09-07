@@ -1,10 +1,12 @@
-import sqlite3
 import requests
 from datetime import datetime, timedelta
-import json
 from flask import Flask, render_template, request, redirect, url_for, flash
 import os
 from dotenv import load_dotenv
+import psycopg2
+import psycopg2.extras
+from urllib.parse import urlparse
+
 
 # Load environment variables from .env file
 load_dotenv()
