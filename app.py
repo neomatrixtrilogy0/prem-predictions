@@ -17,10 +17,6 @@ TEST_MODE = False  # Turn off test mode to use real API data
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'  # Change this in production
 
-import psycopg2
-import psycopg2.extras
-from urllib.parse import urlparse
-import os
 
 class Database:
     def __init__(self):
