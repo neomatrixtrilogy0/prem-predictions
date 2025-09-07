@@ -15,77 +15,146 @@ TEST_MODE = False  # Turn off test mode to use real API data
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'  # Change this in production
 
+import psycopg2
+import psycopg2.extras
+from urllib.parse import urlparse
+import os
+
 class Database:
-    def __init__(self, db_path=None):
-        if db_path is None:
-            # Use Render's persistent disk in production, local path in development
-            db_path = os.environ.get('DATABASE_PATH', 'premier_league_predictions.db')
-        self.db_path = db_path
+    def __init__(self):
+        # Get database URL from environment variable
+        self.database_url = os.environ.get('DATABASE_URL')
+        if self.database_url:
+            # Production: Use PostgreSQL
+            self.use_postgres = True
+            # Parse the database URL
+            parsed = urlparse(self.database_url)
+            self.db_config = {
+                'host': parsed.hostname,
+                'port': parsed.port,
+                'database': parsed.path[1:],  # Remove leading slash
+                'user': parsed.username,
+                'password': parsed.password
+            }
+        else:
+            # Development: Use SQLite
+            self.use_postgres = False
+            self.db_path = "premier_league_predictions.db"
+        
         self.init_database()
     
     def get_connection(self):
-        return sqlite3.connect(self.db_path)
+        if self.use_postgres:
+            return psycopg2.connect(**self.db_config)
+        else:
+            import sqlite3
+            return sqlite3.connect(self.db_path)
     
     def init_database(self):
         """Initialize database tables"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Players table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS players (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name VARCHAR(100) NOT NULL UNIQUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Game weeks table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS game_weeks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                week_number INTEGER NOT NULL UNIQUE,
-                start_date DATE,
-                end_date DATE,
-                is_active BOOLEAN DEFAULT FALSE
-            )
-        ''')
-        
-        # Matches table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS matches (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                api_match_id INTEGER UNIQUE,
-                game_week INTEGER,
-                home_team VARCHAR(100),
-                away_team VARCHAR(100),
-                match_date TIMESTAMP,
-                home_score INTEGER DEFAULT NULL,
-                away_score INTEGER DEFAULT NULL,
-                result VARCHAR(10) DEFAULT NULL,  -- 'HOME', 'AWAY', 'DRAW'
-                status VARCHAR(20) DEFAULT 'SCHEDULED',  -- 'SCHEDULED', 'LIVE', 'FINISHED'
-                FOREIGN KEY (game_week) REFERENCES game_weeks(week_number)
-            )
-        ''')
-        
-        # Predictions table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS predictions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                player_id INTEGER,
-                match_id INTEGER,
-                prediction VARCHAR(10),  -- 'HOME', 'AWAY', 'DRAW'
-                points_earned INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (player_id) REFERENCES players(id),
-                FOREIGN KEY (match_id) REFERENCES matches(id),
-                UNIQUE(player_id, match_id)
-            )
-        ''')
+        if self.use_postgres:
+            # PostgreSQL syntax
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS players (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL UNIQUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS game_weeks (
+                    id SERIAL PRIMARY KEY,
+                    week_number INTEGER NOT NULL UNIQUE,
+                    start_date DATE,
+                    end_date DATE,
+                    is_active BOOLEAN DEFAULT FALSE
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS matches (
+                    id SERIAL PRIMARY KEY,
+                    api_match_id INTEGER UNIQUE,
+                    game_week INTEGER,
+                    home_team VARCHAR(100),
+                    away_team VARCHAR(100),
+                    match_date TIMESTAMP,
+                    home_score INTEGER DEFAULT NULL,
+                    away_score INTEGER DEFAULT NULL,
+                    result VARCHAR(10) DEFAULT NULL,
+                    status VARCHAR(20) DEFAULT 'SCHEDULED'
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS predictions (
+                    id SERIAL PRIMARY KEY,
+                    player_id INTEGER REFERENCES players(id),
+                    match_id INTEGER REFERENCES matches(id),
+                    prediction VARCHAR(10),
+                    points_earned INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(player_id, match_id)
+                )
+            ''')
+        else:
+            # SQLite syntax (for local development)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS players (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR(100) NOT NULL UNIQUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS game_weeks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    week_number INTEGER NOT NULL UNIQUE,
+                    start_date DATE,
+                    end_date DATE,
+                    is_active BOOLEAN DEFAULT FALSE
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS matches (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    api_match_id INTEGER UNIQUE,
+                    game_week INTEGER,
+                    home_team VARCHAR(100),
+                    away_team VARCHAR(100),
+                    match_date TIMESTAMP,
+                    home_score INTEGER DEFAULT NULL,
+                    away_score INTEGER DEFAULT NULL,
+                    result VARCHAR(10) DEFAULT NULL,
+                    status VARCHAR(20) DEFAULT 'SCHEDULED'
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS predictions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    player_id INTEGER,
+                    match_id INTEGER,
+                    prediction VARCHAR(10),
+                    points_earned INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (player_id) REFERENCES players(id),
+                    FOREIGN KEY (match_id) REFERENCES matches(id),
+                    UNIQUE(player_id, match_id)
+                )
+            ''')
         
         conn.commit()
         conn.close()
+        print(f"Database initialized ({'PostgreSQL' if self.use_postgres else 'SQLite'})")
     
     def get_all_players(self):
         """Get all players"""
@@ -103,6 +172,11 @@ class Database:
         cursor.execute('''
             SELECT id, home_team, away_team, match_date, status, result, home_score, away_score
             FROM matches 
+            WHERE game_week = %s 
+            ORDER BY match_date
+        ''' if self.use_postgres else '''
+            SELECT id, home_team, away_team, match_date, status, result, home_score, away_score
+            FROM matches 
             WHERE game_week = ? 
             ORDER BY match_date
         ''', (game_week,))
@@ -118,30 +192,32 @@ class Database:
         # Auto-calculate points first
         self.calculate_points_for_gameweek(game_week)
         
-        # Get weekly points - only for THIS specific gameweek
-        cursor.execute('''
+        placeholder = '%s' if self.use_postgres else '?'
+        
+        # Get weekly points
+        cursor.execute(f'''
             SELECT 
                 pl.name as player_name,
                 COALESCE(SUM(p.points_earned), 0) as weekly_points
             FROM players pl
             LEFT JOIN predictions p ON pl.id = p.player_id
             LEFT JOIN matches m ON p.match_id = m.id
-            WHERE m.game_week = ? OR m.game_week IS NULL
+            WHERE m.game_week = {placeholder} OR m.game_week IS NULL
             GROUP BY pl.id, pl.name
             ORDER BY weekly_points DESC, player_name
         ''', (game_week,))
         
         weekly_results = cursor.fetchall()
         
-        # Get cumulative points - up to this gameweek
-        cursor.execute('''
+        # Get cumulative points
+        cursor.execute(f'''
             SELECT 
                 pl.name as player_name,
                 COALESCE(SUM(p.points_earned), 0) as total_points
             FROM players pl
             LEFT JOIN predictions p ON pl.id = p.player_id
             LEFT JOIN matches m ON p.match_id = m.id
-            WHERE m.game_week <= ? OR m.game_week IS NULL
+            WHERE m.game_week <= {placeholder} OR m.game_week IS NULL
             GROUP BY pl.id, pl.name
             ORDER BY total_points DESC, player_name
         ''', (game_week,))
@@ -165,7 +241,7 @@ class Database:
             LEFT JOIN matches m ON p.match_id = m.id
             GROUP BY pl.id, pl.name
             ORDER BY total_points DESC, player_name
-        ''', )
+        ''')
         
         results = cursor.fetchall()
         conn.close()
@@ -176,22 +252,23 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Get all predictions for finished matches in this gameweek
-        cursor.execute('''
+        placeholder = '%s' if self.use_postgres else '?'
+        
+        cursor.execute(f'''
             SELECT p.id, p.prediction, m.result, p.player_id, m.home_team, m.away_team
             FROM predictions p
             JOIN matches m ON p.match_id = m.id
-            WHERE m.game_week = ? AND m.result IS NOT NULL
+            WHERE m.game_week = {placeholder} AND m.result IS NOT NULL
         ''', (game_week,))
         
         predictions_to_update = cursor.fetchall()
         
         for pred_id, prediction, actual_result, player_id, home_team, away_team in predictions_to_update:
             points = 1 if prediction == actual_result else 0
-            cursor.execute('''
+            cursor.execute(f'''
                 UPDATE predictions 
-                SET points_earned = ? 
-                WHERE id = ?
+                SET points_earned = {placeholder}
+                WHERE id = {placeholder}
             ''', (points, pred_id))
         
         conn.commit()
@@ -205,8 +282,14 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        placeholder = '%s' if self.use_postgres else '?'
+        
         for player in players:
-            cursor.execute('INSERT OR IGNORE INTO players (name) VALUES (?)', (player,))
+            try:
+                cursor.execute(f'INSERT INTO players (name) VALUES ({placeholder})', (player,))
+            except:
+                # Player already exists, skip
+                pass
         
         conn.commit()
         conn.close()
