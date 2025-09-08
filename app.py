@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash
 import os
 from dotenv import load_dotenv
-import psycopg
+import psycopg2
+import psycopg2.extras
 from urllib.parse import urlparse
 
 
@@ -42,7 +43,7 @@ class Database:
     
     def get_connection(self):
         if self.use_postgres:
-            return psycopg.connect(**self.db_config)
+            return psycopg2.connect(**self.db_config)
         else:
             import sqlite3
             return sqlite3.connect(self.db_path)
