@@ -18,6 +18,12 @@ app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this'  # Change this in production
 
 
+import psycopg2
+import psycopg2.extras
+from urllib.parse import urlparse
+import os
+from datetime import datetime
+
 class Database:
     def __init__(self):
         # Get database URL from environment variable
@@ -25,15 +31,6 @@ class Database:
         if self.database_url:
             # Production: Use PostgreSQL
             self.use_postgres = True
-            # Parse the database URL
-            parsed = urlparse(self.database_url)
-            self.db_config = {
-                'host': parsed.hostname,
-                'port': parsed.port,
-                'database': parsed.path[1:],  # Remove leading slash
-                'user': parsed.username,
-                'password': parsed.password
-            }
         else:
             # Development: Use SQLite
             self.use_postgres = False
@@ -43,7 +40,7 @@ class Database:
     
     def get_connection(self):
         if self.use_postgres:
-            return psycopg2.connect(**self.db_config)
+            return psycopg2.connect(self.database_url)
         else:
             import sqlite3
             return sqlite3.connect(self.db_path)
@@ -167,17 +164,22 @@ class Database:
         """Get all matches for a specific game week"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, home_team, away_team, match_date, status, result, home_score, away_score
-            FROM matches 
-            WHERE game_week = %s 
-            ORDER BY match_date
-        ''' if self.use_postgres else '''
-            SELECT id, home_team, away_team, match_date, status, result, home_score, away_score
-            FROM matches 
-            WHERE game_week = ? 
-            ORDER BY match_date
-        ''', (game_week,))
+        
+        if self.use_postgres:
+            cursor.execute('''
+                SELECT id, home_team, away_team, match_date, status, result, home_score, away_score
+                FROM matches 
+                WHERE game_week = %s 
+                ORDER BY match_date
+            ''', (game_week,))
+        else:
+            cursor.execute('''
+                SELECT id, home_team, away_team, match_date, status, result, home_score, away_score
+                FROM matches 
+                WHERE game_week = ? 
+                ORDER BY match_date
+            ''', (game_week,))
+        
         matches = cursor.fetchall()
         conn.close()
         return matches
@@ -190,38 +192,64 @@ class Database:
         # Auto-calculate points first
         self.calculate_points_for_gameweek(game_week)
         
-        placeholder = '%s' if self.use_postgres else '?'
-        
-        # Get weekly points
-        cursor.execute(f'''
-            SELECT 
-                pl.name as player_name,
-                COALESCE(SUM(p.points_earned), 0) as weekly_points
-            FROM players pl
-            LEFT JOIN predictions p ON pl.id = p.player_id
-            LEFT JOIN matches m ON p.match_id = m.id
-            WHERE m.game_week = {placeholder} OR m.game_week IS NULL
-            GROUP BY pl.id, pl.name
-            ORDER BY weekly_points DESC, player_name
-        ''', (game_week,))
-        
-        weekly_results = cursor.fetchall()
-        
-        # Get cumulative points
-        cursor.execute(f'''
-            SELECT 
-                pl.name as player_name,
-                COALESCE(SUM(p.points_earned), 0) as total_points
-            FROM players pl
-            LEFT JOIN predictions p ON pl.id = p.player_id
-            LEFT JOIN matches m ON p.match_id = m.id
-            WHERE m.game_week <= {placeholder} OR m.game_week IS NULL
-            GROUP BY pl.id, pl.name
-            ORDER BY total_points DESC, player_name
-        ''', (game_week,))
+        if self.use_postgres:
+            # Get weekly points - PostgreSQL
+            cursor.execute('''
+                SELECT 
+                    pl.name as player_name,
+                    COALESCE(SUM(p.points_earned), 0) as weekly_points
+                FROM players pl
+                LEFT JOIN predictions p ON pl.id = p.player_id
+                LEFT JOIN matches m ON p.match_id = m.id
+                WHERE m.game_week = %s OR m.game_week IS NULL
+                GROUP BY pl.id, pl.name
+                ORDER BY weekly_points DESC, player_name
+            ''', (game_week,))
+            
+            weekly_results = cursor.fetchall()
+            
+            # Get cumulative points - PostgreSQL
+            cursor.execute('''
+                SELECT 
+                    pl.name as player_name,
+                    COALESCE(SUM(p.points_earned), 0) as total_points
+                FROM players pl
+                LEFT JOIN predictions p ON pl.id = p.player_id
+                LEFT JOIN matches m ON p.match_id = m.id
+                WHERE m.game_week <= %s OR m.game_week IS NULL
+                GROUP BY pl.id, pl.name
+                ORDER BY total_points DESC, player_name
+            ''', (game_week,))
+            
+        else:
+            # SQLite syntax
+            cursor.execute('''
+                SELECT 
+                    pl.name as player_name,
+                    COALESCE(SUM(p.points_earned), 0) as weekly_points
+                FROM players pl
+                LEFT JOIN predictions p ON pl.id = p.player_id
+                LEFT JOIN matches m ON p.match_id = m.id
+                WHERE m.game_week = ? OR m.game_week IS NULL
+                GROUP BY pl.id, pl.name
+                ORDER BY weekly_points DESC, player_name
+            ''', (game_week,))
+            
+            weekly_results = cursor.fetchall()
+            
+            cursor.execute('''
+                SELECT 
+                    pl.name as player_name,
+                    COALESCE(SUM(p.points_earned), 0) as total_points
+                FROM players pl
+                LEFT JOIN predictions p ON pl.id = p.player_id
+                LEFT JOIN matches m ON p.match_id = m.id
+                WHERE m.game_week <= ? OR m.game_week IS NULL
+                GROUP BY pl.id, pl.name
+                ORDER BY total_points DESC, player_name
+            ''', (game_week,))
         
         cumulative_results = cursor.fetchall()
-        
         conn.close()
         return weekly_results, cumulative_results
     
@@ -250,24 +278,40 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        placeholder = '%s' if self.use_postgres else '?'
-        
-        cursor.execute(f'''
-            SELECT p.id, p.prediction, m.result, p.player_id, m.home_team, m.away_team
-            FROM predictions p
-            JOIN matches m ON p.match_id = m.id
-            WHERE m.game_week = {placeholder} AND m.result IS NOT NULL
-        ''', (game_week,))
-        
-        predictions_to_update = cursor.fetchall()
-        
-        for pred_id, prediction, actual_result, player_id, home_team, away_team in predictions_to_update:
-            points = 1 if prediction == actual_result else 0
-            cursor.execute(f'''
-                UPDATE predictions 
-                SET points_earned = {placeholder}
-                WHERE id = {placeholder}
-            ''', (points, pred_id))
+        if self.use_postgres:
+            cursor.execute('''
+                SELECT p.id, p.prediction, m.result, p.player_id, m.home_team, m.away_team
+                FROM predictions p
+                JOIN matches m ON p.match_id = m.id
+                WHERE m.game_week = %s AND m.result IS NOT NULL
+            ''', (game_week,))
+            
+            predictions_to_update = cursor.fetchall()
+            
+            for pred_id, prediction, actual_result, player_id, home_team, away_team in predictions_to_update:
+                points = 1 if prediction == actual_result else 0
+                cursor.execute('''
+                    UPDATE predictions 
+                    SET points_earned = %s
+                    WHERE id = %s
+                ''', (points, pred_id))
+        else:
+            cursor.execute('''
+                SELECT p.id, p.prediction, m.result, p.player_id, m.home_team, m.away_team
+                FROM predictions p
+                JOIN matches m ON p.match_id = m.id
+                WHERE m.game_week = ? AND m.result IS NOT NULL
+            ''', (game_week,))
+            
+            predictions_to_update = cursor.fetchall()
+            
+            for pred_id, prediction, actual_result, player_id, home_team, away_team in predictions_to_update:
+                points = 1 if prediction == actual_result else 0
+                cursor.execute('''
+                    UPDATE predictions 
+                    SET points_earned = ?
+                    WHERE id = ?
+                ''', (points, pred_id))
         
         conn.commit()
         conn.close()
@@ -280,14 +324,15 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        placeholder = '%s' if self.use_postgres else '?'
-        
         for player in players:
             try:
-                cursor.execute(f'INSERT INTO players (name) VALUES ({placeholder})', (player,))
-            except:
-                # Player already exists, skip
-                pass
+                if self.use_postgres:
+                    cursor.execute('INSERT INTO players (name) VALUES (%s) ON CONFLICT (name) DO NOTHING', (player,))
+                else:
+                    cursor.execute('INSERT OR IGNORE INTO players (name) VALUES (?)', (player,))
+            except Exception as e:
+                print(f"Error adding player {player}: {e}")
+                continue
         
         conn.commit()
         conn.close()
@@ -409,7 +454,13 @@ def predictions(player_id, game_week):
     """Predictions page for specific player and game week"""
     conn = db.get_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT name FROM players WHERE id = ?', (player_id,))
+    
+    # Get player info
+    if db.use_postgres:
+        cursor.execute('SELECT name FROM players WHERE id = %s', (player_id,))
+    else:
+        cursor.execute('SELECT name FROM players WHERE id = ?', (player_id,))
+    
     player = cursor.fetchone()
     
     if not player:
@@ -423,12 +474,21 @@ def predictions(player_id, game_week):
             matches = db.get_matches_by_gameweek(game_week)
     
     # Get existing predictions for this player and game week
-    cursor.execute('''
-        SELECT m.id, COALESCE(p.prediction, '') as prediction
-        FROM matches m
-        LEFT JOIN predictions p ON m.id = p.match_id AND p.player_id = ?
-        WHERE m.game_week = ?
-    ''', (player_id, game_week))
+    if db.use_postgres:
+        cursor.execute('''
+            SELECT m.id, COALESCE(p.prediction, '') as prediction
+            FROM matches m
+            LEFT JOIN predictions p ON m.id = p.match_id AND p.player_id = %s
+            WHERE m.game_week = %s
+        ''', (player_id, game_week))
+    else:
+        cursor.execute('''
+            SELECT m.id, COALESCE(p.prediction, '') as prediction
+            FROM matches m
+            LEFT JOIN predictions p ON m.id = p.match_id AND p.player_id = ?
+            WHERE m.game_week = ?
+        ''', (player_id, game_week))
+    
     predictions_result = cursor.fetchall()
     predictions_data = {row[0]: row[1] for row in predictions_result}
     
@@ -455,11 +515,24 @@ def submit_predictions():
         if key.startswith('prediction_'):
             match_id = key.replace('prediction_', '')
             
-            cursor.execute('''
-                INSERT OR REPLACE INTO predictions 
-                (player_id, match_id, prediction, updated_at)
-                VALUES (?, ?, ?, ?)
-            ''', (player_id, match_id, value, datetime.now()))
+            # Insert or update prediction with proper syntax for each database
+            if db.use_postgres:
+                cursor.execute('''
+                    INSERT INTO predictions 
+                    (player_id, match_id, prediction, updated_at)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (player_id, match_id) 
+                    DO UPDATE SET 
+                        prediction = EXCLUDED.prediction,
+                        updated_at = EXCLUDED.updated_at
+                ''', (player_id, match_id, value, datetime.now()))
+            else:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO predictions 
+                    (player_id, match_id, prediction, updated_at)
+                    VALUES (?, ?, ?, ?)
+                ''', (player_id, match_id, value, datetime.now()))
+            
             predictions_count += 1
     
     conn.commit()
@@ -474,20 +547,35 @@ def prediction_summary(player_id, game_week):
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    cursor.execute('SELECT name FROM players WHERE id = ?', (player_id,))
+    # Get player info
+    if db.use_postgres:
+        cursor.execute('SELECT name FROM players WHERE id = %s', (player_id,))
+    else:
+        cursor.execute('SELECT name FROM players WHERE id = ?', (player_id,))
+    
     player = cursor.fetchone()
     
     if not player:
         flash('Player not found')
         return redirect(url_for('home'))
     
-    cursor.execute('''
-        SELECT m.home_team, m.away_team, m.match_date, p.prediction
-        FROM matches m
-        JOIN predictions p ON m.id = p.match_id
-        WHERE p.player_id = ? AND m.game_week = ?
-        ORDER BY m.match_date
-    ''', (player_id, game_week))
+    # Get predictions with match details
+    if db.use_postgres:
+        cursor.execute('''
+            SELECT m.home_team, m.away_team, m.match_date, p.prediction
+            FROM matches m
+            JOIN predictions p ON m.id = p.match_id
+            WHERE p.player_id = %s AND m.game_week = %s
+            ORDER BY m.match_date
+        ''', (player_id, game_week))
+    else:
+        cursor.execute('''
+            SELECT m.home_team, m.away_team, m.match_date, p.prediction
+            FROM matches m
+            JOIN predictions p ON m.id = p.match_id
+            WHERE p.player_id = ? AND m.game_week = ?
+            ORDER BY m.match_date
+        ''', (player_id, game_week))
     
     predictions = cursor.fetchall()
     conn.close()
