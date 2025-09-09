@@ -368,15 +368,15 @@ class FootballAPI:
         if not matches_data or 'matches' not in matches_data:
             print(f"No matches found for matchday {matchday}")
             return False
-        
+
         conn = db.get_connection()
         cursor = conn.cursor()
-        
+
         matches_saved = 0
         for match in matches_data['matches']:
-            # Parse match date
+            # Parse match date (aware datetime)
             match_date = datetime.fromisoformat(match['utcDate'].replace('Z', '+00:00'))
-            
+
             # Determine status - In TEST_MODE, allow predictions on finished matches
             status = match['status']
             if not TEST_MODE:  # Normal mode - respect actual status
@@ -388,39 +388,66 @@ class FootballAPI:
                     status = 'SCHEDULED'
             else:  # TEST_MODE - allow predictions on everything
                 status = 'SCHEDULED'
-            
+
             # Determine result
             result = None
             home_score = None
             away_score = None
-            
-            if match['score']['fullTime']['home'] is not None:
-                home_score = match['score']['fullTime']['home']
-                away_score = match['score']['fullTime']['away']
-                
+
+            full_home = match.get('score', {}).get('fullTime', {}).get('home')
+            full_away = match.get('score', {}).get('fullTime', {}).get('away')
+
+            if full_home is not None:
+                home_score = full_home
+                away_score = full_away
                 if home_score > away_score:
                     result = 'HOME'
                 elif away_score > home_score:
                     result = 'AWAY'
                 else:
                     result = 'DRAW'
-            
-            cursor.execute('''
-                INSERT OR REPLACE INTO matches 
-                (api_match_id, game_week, home_team, away_team, match_date, 
-                 home_score, away_score, result, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                match['id'], matchday, 
-                match['homeTeam']['name'], match['awayTeam']['name'],
-                match_date, home_score, away_score, result, status
-            ))
+
+            if db.use_postgres:
+                # PostgreSQL: use upsert on unique api_match_id
+                cursor.execute('''
+                    INSERT INTO matches
+                    (api_match_id, game_week, home_team, away_team, match_date,
+                    home_score, away_score, result, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (api_match_id) DO UPDATE SET
+                        game_week = EXCLUDED.game_week,
+                        home_team = EXCLUDED.home_team,
+                        away_team = EXCLUDED.away_team,
+                        match_date = EXCLUDED.match_date,
+                        home_score = EXCLUDED.home_score,
+                        away_score = EXCLUDED.away_score,
+                        result = EXCLUDED.result,
+                        status = EXCLUDED.status
+                ''', (
+                    match['id'], matchday,
+                    match['homeTeam']['name'], match['awayTeam']['name'],
+                    match_date, home_score, away_score, result, status
+                ))
+            else:
+                # SQLite: existing behavior
+                cursor.execute('''
+                    INSERT OR REPLACE INTO matches 
+                    (api_match_id, game_week, home_team, away_team, match_date,
+                    home_score, away_score, result, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    match['id'], matchday,
+                    match['homeTeam']['name'], match['awayTeam']['name'],
+                    match_date, home_score, away_score, result, status
+                ))
+
             matches_saved += 1
-        
+
         conn.commit()
         conn.close()
         print(f"Saved {matches_saved} matches for matchday {matchday}")
         return True
+
 
 # Initialize database and API
 db = Database()
