@@ -636,6 +636,10 @@ def weekly_results(game_week):
 @app.route('/results/leaderboard')
 def leaderboard():
     """Overall leaderboard"""
+    # Auto-calculate points for all gameweeks before showing leaderboard
+    for game_week in range(1, 39):  # Calculate for all possible gameweeks
+        db.calculate_points_for_gameweek(game_week)
+    
     results = db.get_overall_leaderboard()
     return render_template('leaderboard.html', results=results)
 
