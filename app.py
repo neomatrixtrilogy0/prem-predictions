@@ -515,22 +515,14 @@ def submit_predictions():
         if key.startswith('prediction_'):
             match_id = int(key.replace('prediction_', ''))
             
-            # Insert or update prediction with proper syntax for each database
+            # Simple approach: delete existing, then insert
             if db.use_postgres:
-                # First try to update, if no rows affected, then insert
+                cursor.execute('DELETE FROM predictions WHERE player_id = %s AND match_id = %s', (player_id, match_id))
                 cursor.execute('''
-                    UPDATE predictions 
-                    SET prediction = %s, updated_at = %s
-                    WHERE player_id = %s AND match_id = %s
-                ''', (value, datetime.now(), player_id, match_id))
-                
-                if cursor.rowcount == 0:
-                    # No existing record, insert new one
-                    cursor.execute('''
-                        INSERT INTO predictions 
-                        (player_id, match_id, prediction, updated_at)
-                        VALUES (%s, %s, %s, %s)
-                    ''', (player_id, match_id, value, datetime.now()))
+                    INSERT INTO predictions 
+                    (player_id, match_id, prediction, updated_at)
+                    VALUES (%s, %s, %s, %s)
+                ''', (player_id, match_id, value, datetime.now()))
             else:
                 cursor.execute('''
                     INSERT OR REPLACE INTO predictions 
