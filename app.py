@@ -585,10 +585,12 @@ def prediction_summary(player_id, game_week):
         flash('Player not found')
         return redirect(url_for('home'))
     
-    # Get predictions with match details
+    # Get predictions with match details - FORMAT DATETIME FOR POSTGRES
     if db.use_postgres:
         cursor.execute('''
-            SELECT m.home_team, m.away_team, m.match_date, p.prediction
+            SELECT m.home_team, m.away_team, 
+                   TO_CHAR(m.match_date, 'YYYY-MM-DD HH24:MI') as match_date_str, 
+                   p.prediction
             FROM matches m
             JOIN predictions p ON m.id = p.match_id
             WHERE p.player_id = %s AND m.game_week = %s
