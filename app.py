@@ -164,10 +164,12 @@ class Database:
         """Get all matches for a specific game week"""
         conn = self.get_connection()
         cursor = conn.cursor()
-        
+    
         if self.use_postgres:
             cursor.execute('''
-                SELECT id, home_team, away_team, match_date, status, result, home_score, away_score
+                SELECT id, home_team, away_team, 
+                        TO_CHAR(match_date, 'YYYY-MM-DD HH24:MI') as match_date_str,
+                        status, result, home_score, away_score
                 FROM matches 
                 WHERE game_week = %s 
                 ORDER BY match_date
@@ -179,7 +181,7 @@ class Database:
                 WHERE game_week = ? 
                 ORDER BY match_date
             ''', (game_week,))
-        
+    
         matches = cursor.fetchall()
         conn.close()
         return matches
