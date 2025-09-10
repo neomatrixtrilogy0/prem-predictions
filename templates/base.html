@@ -16,41 +16,44 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 15px;
         }
 
         .header {
             background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
+            padding: 20px 15px;
             border-radius: 15px;
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
         }
 
         .header h1 {
             color: #38003c;
-            font-size: 2.5em;
+            font-size: clamp(1.8rem, 5vw, 2.5rem);
             margin-bottom: 10px;
             font-weight: 700;
+            line-height: 1.2;
         }
 
         .header p {
             color: #666;
-            font-size: 1.1em;
+            font-size: clamp(0.9rem, 3vw, 1.1rem);
             margin-bottom: 20px;
         }
 
         .nav-menu {
             margin-top: 20px;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             justify-content: center;
             flex-wrap: wrap;
         }
@@ -59,10 +62,14 @@
             color: #667eea;
             text-decoration: none;
             font-weight: 600;
-            padding: 8px 16px;
+            padding: 10px 14px;
             border-radius: 20px;
             background: rgba(102, 126, 234, 0.1);
             transition: all 0.3s ease;
+            font-size: clamp(0.8rem, 2.5vw, 0.95rem);
+            white-space: nowrap;
+            min-width: 110px;
+            text-align: center;
         }
 
         .nav-link:hover {
@@ -72,7 +79,7 @@
 
         .card {
             background: rgba(255, 255, 255, 0.95);
-            padding: 30px;
+            padding: clamp(20px, 4vw, 30px);
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
@@ -88,16 +95,20 @@
             margin-bottom: 8px;
             font-weight: 600;
             color: #38003c;
+            font-size: clamp(0.9rem, 3vw, 1rem);
         }
 
         .form-group select,
         .form-group input {
             width: 100%;
-            padding: 12px;
+            padding: 14px 12px;
             border: 2px solid #ddd;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: clamp(14px, 4vw, 16px);
             transition: border-color 0.3s ease;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
         }
 
         .form-group select:focus,
@@ -109,16 +120,20 @@
         .btn {
             background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
-            padding: 12px 30px;
+            padding: 14px 25px;
             border: none;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: clamp(14px, 4vw, 16px);
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             text-decoration: none;
             display: inline-block;
             text-align: center;
+            min-height: 48px;
+            line-height: 1.4;
+            width: auto;
+            min-width: 120px;
         }
 
         .btn:hover {
@@ -135,6 +150,7 @@
             border-radius: 8px;
             margin-bottom: 20px;
             font-weight: 500;
+            font-size: clamp(0.9rem, 3vw, 1rem);
         }
 
         .alert-success {
@@ -151,7 +167,7 @@
 
         .match-card {
             background: #f8f9fa;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             margin-bottom: 15px;
             border-left: 4px solid #667eea;
@@ -159,6 +175,7 @@
             justify-content: space-between;
             align-items: center;
             transition: transform 0.3s ease;
+            min-height: 80px;
         }
 
         .match-card:hover {
@@ -167,33 +184,42 @@
 
         .match-info {
             flex: 1;
+            min-width: 0;
         }
 
         .match-teams {
             font-weight: 600;
-            font-size: 1.1em;
+            font-size: clamp(0.95rem, 3.5vw, 1.1rem);
             margin-bottom: 5px;
             color: #38003c;
+            line-height: 1.3;
+            word-wrap: break-word;
         }
 
         .match-date {
             color: #666;
-            font-size: 0.9em;
+            font-size: clamp(0.8rem, 2.5vw, 0.9rem);
         }
 
         .prediction-options {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            min-width: 140px;
         }
 
         .prediction-options label {
             background: #e9ecef;
-            padding: 8px 15px;
+            padding: 8px 12px;
             border-radius: 20px;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-size: 14px;
+            font-size: clamp(11px, 3vw, 14px);
             font-weight: 500;
+            white-space: nowrap;
+            min-width: 40px;
+            text-align: center;
         }
 
         .prediction-options input[type="radio"] {
@@ -217,19 +243,22 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            font-size: clamp(13px, 3vw, 16px);
         }
 
         .table th,
         .table td {
-            padding: 12px;
+            padding: clamp(8px, 2vw, 12px);
             text-align: left;
             border-bottom: 1px solid #ddd;
+            word-wrap: break-word;
         }
 
         .table th {
             background-color: #38003c;
             color: white;
             font-weight: 600;
+            font-size: clamp(12px, 2.5vw, 14px);
         }
 
         .table tr:hover {
@@ -242,27 +271,149 @@
             font-weight: 500;
             margin-bottom: 20px;
             display: inline-block;
+            font-size: clamp(0.9rem, 3vw, 1rem);
+            padding: 8px 0;
         }
 
         .back-link:hover {
             text-decoration: underline;
         }
 
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Mobile specific adjustments */
         @media (max-width: 768px) {
-            .match-card {
-                flex-direction: column;
-                gap: 15px;
+            .container {
+                padding: 10px;
             }
 
-            .prediction-options {
-                width: 100%;
-                justify-content: center;
+            .header {
+                padding: 15px 10px;
             }
 
             .nav-menu {
                 flex-direction: column;
                 align-items: center;
-                gap: 10px;
+                gap: 8px;
+            }
+
+            .nav-link {
+                width: 100%;
+                max-width: 200px;
+            }
+
+            .match-card {
+                flex-direction: column;
+                gap: 12px;
+                padding: 12px;
+                text-align: center;
+            }
+
+            .match-info {
+                width: 100%;
+            }
+
+            .prediction-options {
+                width: 100%;
+                justify-content: center;
+                gap: 6px;
+            }
+
+            .prediction-options label {
+                flex: 1;
+                min-width: 60px;
+                padding: 10px 6px;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .table th,
+            .table td {
+                padding: 6px 4px;
+            }
+
+            /* Hide less important columns on mobile */
+            .table th:nth-child(n+4),
+            .table td:nth-child(n+4) {
+                display: none;
+            }
+
+            .btn {
+                width: 100%;
+                margin: 5px 0;
+                padding: 16px;
+                font-size: 16px;
+            }
+
+            .form-group select,
+            .form-group input {
+                padding: 16px 12px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+
+            .podium {
+                flex-direction: column !important;
+                align-items: center !important;
+            }
+            
+            .podium-place {
+                order: unset !important;
+                margin-bottom: 15px !important;
+                width: 100% !important;
+                max-width: 280px;
+            }
+
+            /* Grid layouts become single column on mobile */
+            div[style*="grid-template-columns"] {
+                display: block !important;
+            }
+
+            div[style*="grid-template-columns"] > div {
+                margin-bottom: 15px;
+            }
+        }
+
+        /* iPhone specific adjustments */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.6rem;
+            }
+
+            .match-teams {
+                font-size: 0.9rem;
+            }
+
+            .prediction-options label {
+                font-size: 10px;
+                padding: 8px 4px;
+            }
+
+            .table {
+                font-size: 11px;
+            }
+
+            .btn {
+                font-size: 14px;
+                padding: 14px;
+            }
+        }
+
+        /* Touch improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .btn:hover,
+            .nav-link:hover,
+            .match-card:hover {
+                transform: none;
+            }
+
+            .btn:active,
+            .nav-link:active {
+                transform: scale(0.98);
             }
         }
     </style>
