@@ -379,7 +379,7 @@ def save_matches_to_db(self, matchday, db):
         # Parse match date
         match_date = datetime.fromisoformat(match['utcDate'].replace('Z', '+00:00'))
         
-        # Use the ACTUAL status from the API (no TEST_MODE override)
+        # Use the ACTUAL status from the API
         status = match['status']
         print(f"Match {match['homeTeam']['name']} vs {match['awayTeam']['name']}: Status = {status}")
         
@@ -402,16 +402,13 @@ def save_matches_to_db(self, matchday, db):
             print(f"  Result: {home_score}-{away_score} = {result}")
         
         if db.use_postgres:
+            # PostgreSQL: Delete then insert (simpler than ON CONFLICT)
+            cursor.execute('DELETE FROM matches WHERE api_match_id = %s', (match['id'],))
             cursor.execute('''
                 INSERT INTO matches 
                 (api_match_id, game_week, home_team, away_team, match_date, 
                  home_score, away_score, result, status)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (api_match_id) DO UPDATE SET
-                    home_score = EXCLUDED.home_score,
-                    away_score = EXCLUDED.away_score,
-                    result = EXCLUDED.result,
-                    status = EXCLUDED.status
             ''', (
                 match['id'], matchday, 
                 match['homeTeam']['name'], match['awayTeam']['name'],
