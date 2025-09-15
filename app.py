@@ -376,62 +376,78 @@ def save_matches_to_db(self, matchday, db):
     
     matches_saved = 0
     for match in matches_data['matches']:
-        # Parse match date
-        match_date = datetime.fromisoformat(match['utcDate'].replace('Z', '+00:00'))
-        
-        # Use the ACTUAL status from the API
-        status = match['status']
-        print(f"Match {match['homeTeam']['name']} vs {match['awayTeam']['name']}: Status = {status}")
-        
-        # Determine result
-        result = None
-        home_score = None
-        away_score = None
-        
-        if match['score']['fullTime']['home'] is not None:
-            home_score = match['score']['fullTime']['home']
-            away_score = match['score']['fullTime']['away']
+        try:
+            # Parse match date
+            match_date_str = match['utcDate']  # Keep as string
             
-            if home_score > away_score:
-                result = 'HOME'
-            elif away_score > home_score:
-                result = 'AWAY'
+            # Use the ACTUAL status from the API
+            status = match['status']
+            print(f"Match {match['homeTeam']['name']} vs {match['awayTeam']['name']}: Status = {status}")
+            
+            # Determine result
+            result = None
+            home_score = None
+            away_score = None
+            
+            if match['score']['fullTime']['home'] is not None:
+                home_score = match['score']['fullTime']['home']
+                away_score = match['score']['fullTime']['away']
+                
+                if home_score > away_score:
+                    result = 'HOME'
+                elif away_score > home_score:
+                    result = 'AWAY'
+                else:
+                    result = 'DRAW'
+                
+                print(f"  Result: {home_score}-{away_score} = {result}")
+            
+            if db.use_postgres:
+                # Simple INSERT with manual duplicate handling
+                cursor.execute('SELECT id FROM matches WHERE api_match_id = %s', (match['id'],))
+                existing = cursor.fetchone()
+                
+                if existing:
+                    # Update existing
+                    cursor.execute('''
+                        UPDATE matches 
+                        SET home_score = %s, away_score = %s, result = %s, status = %s
+                        WHERE api_match_id = %s
+                    ''', (home_score, away_score, result, status, match['id']))
+                else:
+                    # Insert new
+                    cursor.execute('''
+                        INSERT INTO matches 
+                        (api_match_id, game_week, home_team, away_team, match_date, 
+                         home_score, away_score, result, status)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ''', (
+                        match['id'], matchday, 
+                        match['homeTeam']['name'], match['awayTeam']['name'],
+                        match_date_str, home_score, away_score, result, status
+                    ))
             else:
-                result = 'DRAW'
+                cursor.execute('''
+                    INSERT OR REPLACE INTO matches 
+                    (api_match_id, game_week, home_team, away_team, match_date, 
+                     home_score, away_score, result, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    match['id'], matchday, 
+                    match['homeTeam']['name'], match['awayTeam']['name'],
+                    match_date_str, home_score, away_score, result, status
+                ))
             
-            print(f"  Result: {home_score}-{away_score} = {result}")
-        
-        if db.use_postgres:
-            # PostgreSQL: Delete then insert (simpler than ON CONFLICT)
-            cursor.execute('DELETE FROM matches WHERE api_match_id = %s', (match['id'],))
-            cursor.execute('''
-                INSERT INTO matches 
-                (api_match_id, game_week, home_team, away_team, match_date, 
-                 home_score, away_score, result, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (
-                match['id'], matchday, 
-                match['homeTeam']['name'], match['awayTeam']['name'],
-                match_date, home_score, away_score, result, status
-            ))
-        else:
-            cursor.execute('''
-                INSERT OR REPLACE INTO matches 
-                (api_match_id, game_week, home_team, away_team, match_date, 
-                 home_score, away_score, result, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                match['id'], matchday, 
-                match['homeTeam']['name'], match['awayTeam']['name'],
-                match_date, home_score, away_score, result, status
-            ))
-        
-        matches_saved += 1
+            matches_saved += 1
+            
+        except Exception as e:
+            print(f"Error processing match {match.get('id', 'unknown')}: {e}")
+            continue
     
     conn.commit()
     conn.close()
     print(f"Saved {matches_saved} matches for matchday {matchday}")
-    return True
+    return matches_saved > 0
 
 
 # Initialize database and API
