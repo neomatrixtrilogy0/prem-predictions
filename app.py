@@ -629,6 +629,60 @@ def leaderboard():
     results = db.get_overall_leaderboard()
     return render_template('leaderboard.html', results=results)
 
+@app.route('/debug/api/<int:gameweek>')
+def debug_api(gameweek):
+    """Debug what API returns for a gameweek"""
+    if not api:
+        return "No API configured"
+    
+    # Get raw API data
+    matches_data = api.get_matches_by_matchday(gameweek)
+    if not matches_data:
+        return f"No API data for gameweek {gameweek}"
+    
+    output = f"<h3>API Data for Gameweek {gameweek}:</h3>"
+    
+    for match in matches_data.get('matches', []):
+        output += f"""
+        <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+            <strong>{match['homeTeam']['name']} vs {match['awayTeam']['name']}</strong><br>
+            <strong>Status:</strong> {match['status']}<br>
+            <strong>Date:</strong> {match['utcDate']}<br>
+            <strong>Home Score:</strong> {match['score']['fullTime']['home']}<br>
+            <strong>Away Score:</strong> {match['score']['fullTime']['away']}<br>
+        </div>
+        """
+    
+    return output
+
+@app.route('/debug/force_refresh/<int:gameweek>')
+def force_refresh(gameweek):
+    """Force refresh API data for a gameweek"""
+    if not api:
+        return "No API configured"
+    
+    # Force refresh from API
+    success = api.save_matches_to_db(gameweek, db)
+    
+    if success:
+        # Check what's in database
+        matches = db.get_matches_by_gameweek(gameweek)
+        output = f"<h3>Refreshed Gameweek {gameweek} - Database contains:</h3>"
+        
+        for match in matches:
+            output += f"""
+            <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+                <strong>{match[1]} vs {match[2]}</strong><br>
+                <strong>Status:</strong> {match[4]}<br>
+                <strong>Result:</strong> {match[5]}<br>
+                <strong>Score:</strong> {match[6] if match[6] is not None else 'None'} - {match[7] if match[7] is not None else 'None'}<br>
+            </div>
+            """
+        
+        return output
+    else:
+        return f"Failed to refresh gameweek {gameweek}"
+
 
     
 
