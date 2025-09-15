@@ -27,25 +27,46 @@
                 {% if match[4] == 'FINISHED' %}
                     <div style="color: #28a745; font-weight: bold; margin-top: 5px;">
                         ✅ Final Result: {{ match[5] if match[5] else 'Unknown' }}
+                        {% if match[6] is not none and match[7] is not none %}
+                            ({{ match[6] }} - {{ match[7] }})
+                        {% endif %}
+                    </div>
+                {% elif match[4] in ['LIVE', 'IN_PLAY', 'PAUSED'] %}
+                    <div style="color: #dc3545; font-weight: bold; margin-top: 5px;">
+                        🔴 Match Live
                     </div>
                 {% endif %}
             </div>
             
             <div class="prediction-options">
                 {% set current_prediction = predictions.get(match[0]) %}
+                {% set is_live_or_finished = match[4] in ['LIVE', 'IN_PLAY', 'PAUSED', 'FINISHED'] %}
                 
                 <input type="radio" name="prediction_{{ match[0] }}" id="home_{{ match[0] }}" value="HOME" 
-                       {% if current_prediction == 'HOME' %}checked{% endif %}>
-                <label for="home_{{ match[0] }}">{{ match[1] }} Win</label>
+                       {% if current_prediction == 'HOME' %}checked{% endif %}
+                       {% if is_live_or_finished %}disabled{% endif %}>
+                <label for="home_{{ match[0] }}" {% if is_live_or_finished %}style="opacity: 0.5; cursor: not-allowed;"{% endif %}>{{ match[1] }} Win</label>
                 
                 <input type="radio" name="prediction_{{ match[0] }}" id="draw_{{ match[0] }}" value="DRAW"
-                       {% if current_prediction == 'DRAW' %}checked{% endif %}>
-                <label for="draw_{{ match[0] }}">Draw</label>
+                       {% if current_prediction == 'DRAW' %}checked{% endif %}
+                       {% if is_live_or_finished %}disabled{% endif %}>
+                <label for="draw_{{ match[0] }}" {% if is_live_or_finished %}style="opacity: 0.5; cursor: not-allowed;"{% endif %}>Draw</label>
                 
                 <input type="radio" name="prediction_{{ match[0] }}" id="away_{{ match[0] }}" value="AWAY"
-                       {% if current_prediction == 'AWAY' %}checked{% endif %}>
-                <label for="away_{{ match[0] }}">{{ match[2] }} Win</label>
+                       {% if current_prediction == 'AWAY' %}checked{% endif %}
+                       {% if is_live_or_finished %}disabled{% endif %}>
+                <label for="away_{{ match[0] }}" {% if is_live_or_finished %}style="opacity: 0.5; cursor: not-allowed;"{% endif %}>{{ match[2] }} Win</label>
             </div>
+
+            {% if is_live_or_finished %}
+                <div style="margin-top: 8px; font-size: 12px; color: #dc3545; font-weight: 500; text-align: center;">
+                    {% if match[4] == 'FINISHED' %}
+                        ⚠️ Match finished - predictions locked
+                    {% else %}
+                        🔴 Match live - predictions locked
+                    {% endif %}
+                </div>
+            {% endif %}
         </div>
         {% endfor %}
         
@@ -69,36 +90,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     const submitBtn = document.querySelector('button[type="submit"]');
     
+    if (!form || !submitBtn) return;
+    
     // Check if all predictions are made
     function checkAllPredictions() {
         const matchCards = document.querySelectorAll('.match-card');
-        let allPredicted = true;
         let totalMatches = 0;
         let predictedMatches = 0;
+        let hasEnabledMatches = false;
         
         matchCards.forEach(card => {
             const radios = card.querySelectorAll('input[type="radio"]:not(:disabled)');
             if (radios.length > 0) {
+                hasEnabledMatches = true;
                 totalMatches++;
                 const checked = card.querySelector('input[type="radio"]:checked');
                 if (checked) {
                     predictedMatches++;
-                } else {
-                    allPredicted = false;
                 }
             }
         });
         
-        // Update button text
+        // Update button text and state
         if (totalMatches > 0) {
             submitBtn.textContent = `🎯 Submit Predictions (${predictedMatches}/${totalMatches})`;
+        } else if (!hasEnabledMatches) {
+            submitBtn.textContent = '🔒 All Matches Locked';
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.5';
+            submitBtn.style.cursor = 'not-allowed';
         }
         
-        return allPredicted;
+        return predictedMatches > 0;
     }
     
     // Add event listeners to radio buttons
-    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+    document.querySelectorAll('input[type="radio"]:not(:disabled)').forEach(radio => {
         radio.addEventListener('change', checkAllPredictions);
     });
     
@@ -107,7 +134,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Form submission validation
     form.addEventListener('submit', function(e) {
-        const confirmed = confirm('Are you sure you want to submit these predictions?');
+        const enabledRadios = document.querySelectorAll('input[type="radio"]:not(:disabled)');
+        const checkedRadios = document.querySelectorAll('input[type="radio"]:checked:not(:disabled)');
+        
+        if (enabledRadios.length === 0) {
+            e.preventDefault();
+            alert('All matches are locked. No predictions can be submitted.');
+            return;
+        }
+        
+        if (checkedRadios.length === 0) {
+            e.preventDefault();
+            alert('Please make at least one prediction before submitting.');
+            return;
+        }
+        
+        const confirmed = confirm(`Are you sure you want to submit ${checkedRadios.length} prediction(s)?`);
         if (!confirmed) {
             e.preventDefault();
         }
