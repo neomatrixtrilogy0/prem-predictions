@@ -494,11 +494,13 @@ def predictions(player_id, game_week):
         flash('Player not found')
         return redirect(url_for('home'))
     
-    # Load matches for this game week (from API if not exists)
+    # ALWAYS refresh match data from API before showing predictions
+    if api:
+        print(f"Auto-refreshing match data for gameweek {game_week}")
+        api.save_matches_to_db(game_week, db)
+    
+    # Load matches (now with fresh data)
     matches = db.get_matches_by_gameweek(game_week)
-    if not matches and api:
-        if api.save_matches_to_db(game_week, db):
-            matches = db.get_matches_by_gameweek(game_week)
     
     # Get existing predictions for this player and game week
     if db.use_postgres:
@@ -620,8 +622,9 @@ def results_home():
 @app.route('/results/weekly/<int:game_week>')
 def weekly_results(game_week):
     """Weekly results for a specific gameweek"""
-    matches = db.get_matches_by_gameweek(game_week)
-    if not matches and api:
+    # Always refresh match data before showing results
+    if api:
+        print(f"Auto-refreshing match data for gameweek {game_week} results")
         api.save_matches_to_db(game_week, db)
     
     weekly_results, cumulative_results = db.get_weekly_results(game_week)
